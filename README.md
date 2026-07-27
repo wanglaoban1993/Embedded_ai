@@ -28,7 +28,9 @@ Embedded_ai/
 ├── xai/
 │   ├── xai_gradcam.py           # Grad-CAM
 │   ├── xai_gradcam_standard.py  # "Standard" Grad-CAM variant
-│   └── outputs/                 # Generated heatmaps/overlays + saved SHAP arrays
+│   ├── xai_occlusion.py         # Occlusion-based sensitivity map
+│   ├── xai_shap.py              # SHAP (via the `shap` package's Image masker)
+│   └── outputs/                 # Generated heatmaps/overlays/SHAP plots
 └── archive/
     └── another_demo/    # Earlier exploratory scripts (38-class scaffolding), superseded by scripts/ and xai/
 ```
@@ -47,8 +49,9 @@ Embedded_ai/
    `models/leaf_model_fp32.onnx` (and optionally an INT8 ONNX; INT8 export
    must run on Linux/macOS, not Windows).
 7. `scripts/test_onnx_fp32.py` — sanity-checks the exported ONNX model.
-8. `xai/xai_gradcam.py` / `xai/xai_gradcam_standard.py` — generate Grad-CAM
-   heatmaps/overlays into `xai/outputs/`.
+8. `xai/xai_gradcam.py`, `xai/xai_gradcam_standard.py`, `xai/xai_occlusion.py`,
+   `xai/xai_shap.py` — generate explanation heatmaps/overlays/plots into
+   `xai/outputs/`. These all run on a PC, not on the Pi (see note below).
 9. `scripts/rasp_auto_check.py` — deployed and run directly on the Raspberry
    Pi (uses absolute `/home/pi/leaf_checker/...` paths, independent of this
    repo layout).
@@ -56,15 +59,22 @@ Embedded_ai/
 All scripts locate the project root relative to their own file location
 (`os.path.dirname(os.path.abspath(__file__))`), so they can be run from any
 working directory — just `python scripts/train_mobilenet_v3_small.py`, etc.
-The two `xai/*.py` scripts import `pick_test_images` from
-`scripts/test_onnx_fp32.py` and add `scripts/` to `sys.path` for that.
+`xai/xai_gradcam.py` and `xai/xai_gradcam_standard.py` import `pick_test_images`
+from `scripts/test_onnx_fp32.py` and add `scripts/` to `sys.path` for that;
+`xai/xai_occlusion.py` and `xai/xai_shap.py` are self-contained.
 
 ## Notes
 
 - `all_process.ipynb` is a working notebook of Raspberry Pi setup notes and
-  XAI feasibility discussion (LRP/SHAP ruled out as too heavy for the
-  device; Grad-CAM used instead) — it's not a runnable end-to-end pipeline.
+  XAI feasibility discussion. LRP and SHAP were judged too heavy to run *on
+  the Pi itself*; SHAP (`xai/xai_shap.py`), occlusion, and Grad-CAM are all
+  run offline on a PC against the exported ONNX model instead.
+- `data/` (raw images, `data_split/`, `class_indices.json`) is intentionally
+  **not** committed to this repo — keep it locally alongside the project
+  (e.g. as a sibling folder) and point the scripts at it, or regenerate
+  `data_split/` from raw images with `scripts/data_split.py`.
 - `archive/another_demo/` is kept for reference only; its scripts assume a
   different (38-class, MNIST-demo) setup and are superseded by `scripts/`
   and `xai/`.
-- Key dependencies: `torch`, `torchvision`, `onnxruntime`, `numpy`, `pillow`.
+- Key dependencies: `torch`, `torchvision`, `onnxruntime`, `numpy`, `pillow`,
+  `shap`, `matplotlib` (the last two only for `xai/xai_shap.py`).
